@@ -1,12 +1,10 @@
 import streamlit as st
 import os
+import html
 import requests
 from google import genai
 from dotenv import load_dotenv
 
-# --- Safe Environment & API Configuration ---
-# This explicitly looks for the .env file in the current working script folder
-current_dir = os.path.dirname(os.path.abspath(__file__))
 # --- Safe Environment & API Configuration ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 dotenv_path = os.path.join(current_dir, ".env")
@@ -140,17 +138,24 @@ if submit_btn:
             repo_count, sample_repos = check_github_saturation(p_title)
             
             # 2. Trigger generative validation engine framework
+            if not API_KEY:
+                st.error("The AI service is not configured right now. Please try again later.")
+                st.stop()
             client = genai.Client(api_key=API_KEY)
             
             sample_text = "\n".join([f"- {r['name']} ({r['stargazers_count']} ★): {r['description']}" for r in sample_repos])
             prompt = f"Analyze this proposed project:\nTitle: {p_title}\nDescription: {p_desc}\nTech Stack: {p_tech}\nGitHub found {repo_count} similar repositories. Top samples:\n{sample_text}\nProvide a professional assessment covering:\n1. Market Saturation Verdict\n2. Feasibility & Tech Stack Score\n3. 3 Strategic Improvements/Feature Gaps."
             
-            interaction = client.interactions.create(model="gemini-2.5-flash", input=prompt)
+            try:
+                interaction = client.interactions.create(model="gemini-2.5-flash", input=prompt)
+            except Exception:
+                st.error("The AI analysis is temporarily unavailable. Please try again in a moment.")
+                st.stop()
             
             # 3. Structural Header Card (Inverts styling automatically in Dark Mode)
             st.markdown(f"""
             <div class="custom-card">
-                <h3 style="margin-top: 0px; font-weight: 600; color: inherit;">Evaluation Report: {p_title}</h3>
+                <h3 style="margin-top: 0px; font-weight: 600; color: inherit;">Evaluation Report: {html.escape(p_title)}</h3>
             </div>
             """, unsafe_allow_html=True)
             
@@ -187,17 +192,17 @@ if submit_btn:
                         <div style="background-color: var(--background-color, #FFFFFF); border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 16px; font-weight: 600;">
-                                    <span style="color: #94A3B8; margin-right: 4px;">#{index}</span> 🌿 <a href="{repo['html_url']}" target="_blank" style="color: #4F46E5; text-decoration: none;">{repo['name']}</a>
+                                    <span style="color: #94A3B8; margin-right: 4px;">#{index}</span> 🌿 <a href="{html.escape(repo['html_url'])}" target="_blank" style="color: #4F46E5; text-decoration: none;">{html.escape(repo['name'])}</a>
                                 </span>
                                 <span style="background-color: #FEF3C7; color: #D97706; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">
                                     ⭐ {repo['stargazers_count']:,} stars
                                 </span>
                             </div>
                             <p style="color: #64748B; font-size: 14px; margin-top: 8px; margin-bottom: 4px; line-height: 1.4;">
-                                {repo['description'] or 'No description provided.'}
+                                {html.escape(repo['description'] or 'No description provided.')}
                             </p>
                             <div style="font-size: 12px; color: #94A3B8; margin-top: 6px;">
-                                Main Language Layer: <b>{repo['language'] or 'Not Specified'}</b>
+                                Main Language Layer: <b>{html.escape(repo['language'] or 'Not Specified')}</b>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
